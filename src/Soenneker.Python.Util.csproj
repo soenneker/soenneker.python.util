@@ -35,14 +35,19 @@
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild></PropertyGroup>
     
     <ItemGroup>
-        
         <None Include="..\README.md" Pack="true" PackagePath="\" />
         <None Include="..\LICENSE" Pack="true" PackagePath="\" />
         <None Include="..\icon.png" Pack="true" PackagePath="\" />
     </ItemGroup>
-    
+
+    <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
+        <DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
+    </PropertyGroup>
+
     <ItemGroup>
+      <PackageReference Include="Soenneker.Utils.Json" Version="3.0.2339" />
       <PackageReference Include="Soenneker.Utils.Process" Version="3.0.1325" />
+      <PackageReference Include="Soenneker.Utils.Runtime" Version="3.0.853" />
     </ItemGroup>
 
 </Project>
