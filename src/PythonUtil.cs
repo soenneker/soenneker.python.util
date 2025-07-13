@@ -1,9 +1,8 @@
 ﻿using Soenneker.Python.Util.Abstract;
 using Soenneker.Utils.Process.Abstract;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-using Soenneker.Extensions.Task;
+using Soenneker.Extensions.ValueTask;
 
 namespace Soenneker.Python.Util;
 
@@ -19,22 +18,8 @@ public sealed class PythonUtil : IPythonUtil
 
     public async ValueTask<string> GetPythonPath(string pythonCommand = "python", CancellationToken cancellationToken = default)
     {
-        var processStartInfo = new ProcessStartInfo
-        {
-            FileName = pythonCommand,
-            Arguments = "-c \"import sys; print(sys.executable)\"",
-            RedirectStandardOutput = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
+        string result = await _processUtil.StartAndGetOutput(pythonCommand, "-c \"import sys; print(sys.executable)\"", cancellationToken: cancellationToken).NoSync();
 
-        using var process = new Process();
-        process.StartInfo = processStartInfo;
-        process.Start();
-
-        string output = await process.StandardOutput.ReadToEndAsync(cancellationToken).NoSync();
-        await process.WaitForExitAsync(cancellationToken).NoSync();
-
-        return output.Trim();
+        return result.Trim();
     }
 }

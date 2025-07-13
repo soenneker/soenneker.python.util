@@ -42,7 +42,7 @@
     </ItemGroup>
     
     <ItemGroup>
-      <PackageReference Include="Soenneker.Utils.Process" Version="3.0.1324" />
+      <PackageReference Include="Soenneker.Utils.Process" Version="3.0.1325" />
     </ItemGroup>
 
 </Project>
