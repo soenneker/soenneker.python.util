@@ -60,6 +60,10 @@ public sealed class PythonUtil : IPythonUtil
 
     private async ValueTask<string?> TryLocate(Version required, CancellationToken ct)
     {
+        if (RuntimeUtil.IsWindows())
+            if (ProbeHostedToolCache(required) is { } cached)
+                return cached;
+
         string[] commands = OperatingSystem.IsWindows() ? ["python", "py -3", "python3"] : ["python3", "python"];
 
         foreach (string cmd in commands)
@@ -71,6 +75,41 @@ public sealed class PythonUtil : IPythonUtil
             return reg;
 #endif
         return null;
+    }
+
+    private static string? ProbeHostedToolCache(Version target)
+    {
+        string root = Environment.GetEnvironmentVariable("AGENT_TOOLSDIRECTORY") ?? @"C:\hostedtoolcache\windows";
+
+        string pythonRoot = Path.Combine(root, "Python");
+        if (!Directory.Exists(pythonRoot))
+            return null;
+
+        foreach (string verDir in Directory.EnumerateDirectories(pythonRoot))
+        {
+            if (!Version.TryParse(Path.GetFileName(verDir), out Version? v) || !MatchMajorMinor(v, target))
+                continue;
+
+            string candidate = Path.Combine(verDir, "x64", "python.exe");
+            if (File.Exists(candidate))
+                return candidate;
+        }
+
+        return null;
+    }
+
+
+    private async ValueTask<bool> CommandExists(string cmd, CancellationToken ct)
+    {
+        try
+        {
+            await _processUtil.StartAndGetOutput("where", cmd, "", ct).NoSync();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private async ValueTask<string?> Probe(string command, Version target, CancellationToken ct)
@@ -133,22 +172,33 @@ public sealed class PythonUtil : IPythonUtil
     }
 #endif
 
-    public async ValueTask TryInstall(Version version, CancellationToken ct = default)
+    public async ValueTask TryInstall(Version version, CancellationToken cancellationToken = default)
     {
         string ver = $"{version.Major}.{version.Minor}";
 
         if (RuntimeUtil.IsLinux())
         {
             // Debian/Ubuntu; adapt for yum/dnf/zypper if needed.
-            await _processUtil.BashRun($"sudo apt-get -qq update && sudo apt-get -y install python{ver}", workingDir: "", cancellationToken: ct);
+            await _processUtil.BashRun($"sudo apt-get -qq update && sudo apt-get -y install python{ver}", workingDir: "", cancellationToken: cancellationToken);
         }
         else if (RuntimeUtil.IsWindows())
         {
-            await _processUtil.StartAndGetOutput("winget", $"install --silent --exact --id Python.Python.{ver}", cancellationToken: ct).NoSync();
+            if (await CommandExists("winget", cancellationToken))
+            {
+                await _processUtil.StartAndGetOutput("winget", $"install --silent --exact --id Python.Python.{ver}", "", cancellationToken).NoSync();
+            }
+            else if (await CommandExists("choco", cancellationToken))
+            {
+                await _processUtil.StartAndGetOutput("choco", $"install python --version {ver}.0 -y --no-progress", "", cancellationToken).NoSync();
+            }
+            else
+            {
+                throw new InvalidOperationException("Neither winget nor Chocolatey is available to install Python on this runner.");
+            }
         }
         else if (RuntimeUtil.IsMacOs())
         {
-            await _processUtil.StartAndGetOutput("brew", $"install python@{ver}", cancellationToken: ct).NoSync();
+            await _processUtil.StartAndGetOutput("brew", $"install python@{ver}", cancellationToken: cancellationToken).NoSync();
         }
     }
 
