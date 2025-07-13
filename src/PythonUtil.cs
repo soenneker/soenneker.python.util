@@ -49,7 +49,7 @@ public sealed class PythonUtil : IPythonUtil
         // 2️⃣  Optional install
         if (installIfMissing)
         {
-            await TryInstall(required, cancellationToken);
+            await TryInstall(required, cancellationToken).NoSync();
 
             if (await TryLocate(required, cancellationToken).NoSync() is { } installed)
                 return installed;
@@ -67,8 +67,10 @@ public sealed class PythonUtil : IPythonUtil
         string[] commands = OperatingSystem.IsWindows() ? ["python", "py -3", "python3"] : ["python3", "python"];
 
         foreach (string cmd in commands)
+        {
             if (await Probe(cmd, required, ct).NoSync() is { } found)
                 return found;
+        }
 
 #if WINDOWS
         if (ProbeRegistry(required, out string? reg))
@@ -96,20 +98,6 @@ public sealed class PythonUtil : IPythonUtil
         }
 
         return null;
-    }
-
-
-    private async ValueTask<bool> CommandExists(string cmd, CancellationToken ct)
-    {
-        try
-        {
-            await _processUtil.StartAndGetOutput("where", cmd, "", ct).NoSync();
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
     }
 
     private async ValueTask<string?> Probe(string command, Version target, CancellationToken ct)
@@ -174,7 +162,7 @@ public sealed class PythonUtil : IPythonUtil
 
     public async ValueTask TryInstall(Version version, CancellationToken cancellationToken = default)
     {
-        string ver = $"{version.Major}.{version.Minor}";
+        var ver = $"{version.Major}.{version.Minor}";
 
         if (RuntimeUtil.IsLinux())
         {
@@ -183,11 +171,11 @@ public sealed class PythonUtil : IPythonUtil
         }
         else if (RuntimeUtil.IsWindows())
         {
-            if (await CommandExists("winget", cancellationToken))
+            if (await _processUtil.CommandExists("winget", cancellationToken).NoSync())
             {
                 await _processUtil.StartAndGetOutput("winget", $"install --silent --exact --id Python.Python.{ver}", "", cancellationToken).NoSync();
             }
-            else if (await CommandExists("choco", cancellationToken))
+            else if (await _processUtil.CommandExists("choco", cancellationToken).NoSync())
             {
                 await _processUtil.StartAndGetOutput("choco", $"install python --version {ver}.0 -y --no-progress", "", cancellationToken).NoSync();
             }
