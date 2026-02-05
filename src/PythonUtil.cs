@@ -29,8 +29,13 @@ public sealed class PythonUtil : IPythonUtil
 
     public async ValueTask<string> GetPythonPath(string pythonCommand = "python", CancellationToken cancellationToken = default)
     {
-        string result = await _processUtil.StartAndGetOutput(pythonCommand, "-c \"import sys; print(sys.executable)\"", cancellationToken: cancellationToken)
-                                          .NoSync();
+        string result = await _processUtil.StartAndGetOutput(
+            pythonCommand,
+            "-c \"import sys; print(sys.executable)\"",
+            "",
+            TimeSpan.FromSeconds(3),
+            cancellationToken
+        ).NoSync();
 
         return result.Trim();
     }
@@ -64,7 +69,15 @@ public sealed class PythonUtil : IPythonUtil
             if (ProbeHostedToolCache(required) is { } cached)
                 return cached;
 
-        string[] commands = OperatingSystem.IsWindows() ? ["python", "py -3", "python3"] : ["python3", "python"];
+        string[] commands = OperatingSystem.IsWindows()
+            ?
+            [
+                $"py -{required.Major}.{required.Minor}",
+                "python",
+                "python3",
+                "py -3"
+            ]
+            : ["python3", "python"];
 
         foreach (string cmd in commands)
         {
@@ -109,7 +122,13 @@ public sealed class PythonUtil : IPythonUtil
         string json;
         try
         {
-            json = await _processUtil.StartAndGetOutput(file, $"{extra} {script}", cancellationToken: ct).NoSync();
+            json = await _processUtil.StartAndGetOutput(
+                file,
+                $"{extra} {script}",
+                "",
+                TimeSpan.FromSeconds(3),
+                ct
+            ).NoSync();
         }
         catch
         {
@@ -119,6 +138,13 @@ public sealed class PythonUtil : IPythonUtil
         try
         {
             string[] data = JsonUtil.Deserialize<string[]>(json)!;
+
+            if (OperatingSystem.IsWindows() &&
+                data[0].IndexOf(@"\AppData\Local\Microsoft\WindowsApps\", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return null;
+            }
+
             Version v = Version.Parse(data[1]);
 
             return MatchMajorMinor(v, target) ? data[0] : null;
@@ -134,14 +160,16 @@ public sealed class PythonUtil : IPythonUtil
     {
         const string root = @"SOFTWARE\Python\PythonCore";
 
-        foreach (RegistryKey hive in new[] {Registry.CurrentUser, Registry.LocalMachine})
+        foreach (RegistryKey hive in new[] { Registry.CurrentUser, Registry.LocalMachine })
         {
             using RegistryKey? baseKey = hive.OpenSubKey(root);
             if (baseKey is null) continue;
 
             foreach (string tag in baseKey.GetSubKeyNames())
             {
-                if (!Version.TryParse(tag[..3], out Version? v) || !MatchMajorMinor(v, target))
+                string prefix = tag.Length >= 4 ? tag[..4] : tag;
+
+                if (!Version.TryParse(prefix, out Version? v) || !MatchMajorMinor(v, target))
                     continue;
 
                 using RegistryKey? ip = baseKey.OpenSubKey($@"{tag}\InstallPath");
@@ -171,13 +199,28 @@ public sealed class PythonUtil : IPythonUtil
         }
         else if (RuntimeUtil.IsWindows())
         {
-            if (await _processUtil.CommandExists("winget", cancellationToken).NoSync())
+            if (await _processUtil.CommandExistsAndRuns("winget", "--version", TimeSpan.FromSeconds(3), cancellationToken).NoSync())
             {
-                await _processUtil.StartAndGetOutput("winget", $"install --silent --exact --id Python.Python.{ver}", "", cancellationToken).NoSync();
+                await _processUtil.StartAndGetOutput(
+                    "winget",
+                    $"install --exact --id Python.Python.{ver} " +
+                    "--silent --disable-interactivity " +
+                    "--accept-source-agreements --accept-package-agreements " +
+                    "--source winget",
+                    "",
+                    TimeSpan.FromMinutes(5),
+                    cancellationToken
+                ).NoSync();
             }
-            else if (await _processUtil.CommandExists("choco", cancellationToken).NoSync())
+            else if (await _processUtil.CommandExistsAndRuns("choco", "--version", TimeSpan.FromSeconds(3), cancellationToken).NoSync())
             {
-                await _processUtil.StartAndGetOutput("choco", $"install python --version {ver}.0 -y --no-progress", "", cancellationToken).NoSync();
+                await _processUtil.StartAndGetOutput(
+                    "choco",
+                    $"install python --version {ver}.0 -y --no-progress",
+                    "",
+                    TimeSpan.FromMinutes(5),
+                    cancellationToken
+                ).NoSync();
             }
             else
             {
@@ -186,7 +229,13 @@ public sealed class PythonUtil : IPythonUtil
         }
         else if (RuntimeUtil.IsMacOs())
         {
-            await _processUtil.StartAndGetOutput("brew", $"install python@{ver}", cancellationToken: cancellationToken).NoSync();
+            await _processUtil.StartAndGetOutput(
+                "brew",
+                $"install python@{ver}",
+                "",
+                TimeSpan.FromMinutes(10),
+                cancellationToken
+            ).NoSync();
         }
     }
 
