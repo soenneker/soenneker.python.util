@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?><Project Sdk="Microsoft.NET.Sdk">
+<?xml version="1.0" encoding="utf-8"?><Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
@@ -45,6 +45,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="Soenneker.Utils.Directory" Version="4.0.779" />
       <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2400" />
       <PackageReference Include="Soenneker.Utils.Process" Version="4.0.1391" />
       <PackageReference Include="Soenneker.Utils.Runtime" Version="4.0.927" />

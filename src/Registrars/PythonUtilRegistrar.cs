@@ -1,6 +1,7 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Soenneker.Python.Util.Abstract;
+using Soenneker.Utils.Directory.Registrars;
 using Soenneker.Utils.Process.Registrars;
 
 namespace Soenneker.Python.Util.Registrars;
@@ -15,7 +16,7 @@ public static class PythonUtilRegistrar
     /// </summary>
     public static IServiceCollection AddPythonUtilAsSingleton(this IServiceCollection services)
     {
-        services.AddProcessUtilAsSingleton().TryAddSingleton<IPythonUtil, PythonUtil>();
+        services.AddDirectoryUtilAsSingleton().AddProcessUtilAsSingleton().TryAddSingleton<IPythonUtil, PythonUtil>();
 
         return services;
     }
@@ -25,7 +26,7 @@ public static class PythonUtilRegistrar
     /// </summary>
     public static IServiceCollection AddPythonUtilAsScoped(this IServiceCollection services)
     {
-        services.AddProcessUtilAsScoped().TryAddScoped<IPythonUtil, PythonUtil>();
+        services.AddDirectoryUtilAsScoped().AddProcessUtilAsScoped().TryAddScoped<IPythonUtil, PythonUtil>();
 
         return services;
     }

@@ -1,6 +1,8 @@
-﻿using Soenneker.Extensions.ValueTask;
+using Soenneker.Extensions.ValueTask;
 using Soenneker.Python.Util.Abstract;
+using Soenneker.Utils.Directory.Abstract;
 using Soenneker.Utils.Json;
+using System.Collections.Generic;
 using Soenneker.Utils.Process.Abstract;
 using Soenneker.Utils.Runtime;
 using Microsoft.Extensions.Logging;
@@ -20,11 +22,13 @@ public sealed class PythonUtil : IPythonUtil
 {
     private readonly IProcessUtil _processUtil;
     private readonly ILogger<PythonUtil> _logger;
+    private readonly IDirectoryUtil _directoryUtil;
 
-    public PythonUtil(IProcessUtil processUtil, ILogger<PythonUtil> logger)
+    public PythonUtil(IProcessUtil processUtil, ILogger<PythonUtil> logger, IDirectoryUtil directoryUtil)
     {
         _processUtil = processUtil;
         _logger = logger;
+        _directoryUtil = directoryUtil;
     }
 
     public async ValueTask<string> GetPythonPath(string pythonCommand = "python", CancellationToken cancellationToken = default)
@@ -66,7 +70,7 @@ public sealed class PythonUtil : IPythonUtil
     private async ValueTask<string?> TryLocate(Version required, CancellationToken ct)
     {
         if (RuntimeUtil.IsWindows())
-            if (ProbeHostedToolCache(required) is { } cached)
+            if (await ProbeHostedToolCache(required, ct).NoSync() is { } cached)
                 return cached;
 
         string[] commands = OperatingSystem.IsWindows()
@@ -92,15 +96,16 @@ public sealed class PythonUtil : IPythonUtil
         return null;
     }
 
-    private static string? ProbeHostedToolCache(Version target)
+    private async ValueTask<string?> ProbeHostedToolCache(Version target, CancellationToken cancellationToken)
     {
         string root = Environment.GetEnvironmentVariable("AGENT_TOOLSDIRECTORY") ?? @"C:\hostedtoolcache\windows";
 
         string pythonRoot = Path.Combine(root, "Python");
-        if (!Directory.Exists(pythonRoot))
+        if (!(await _directoryUtil.Exists(pythonRoot, cancellationToken)))
             return null;
 
-        foreach (string verDir in Directory.EnumerateDirectories(pythonRoot))
+        List<string> verDirs = await _directoryUtil.GetAllDirectories(pythonRoot, cancellationToken);
+        foreach (string verDir in verDirs)
         {
             if (!Version.TryParse(Path.GetFileName(verDir), out Version? v) || !MatchMajorMinor(v, target))
                 continue;
