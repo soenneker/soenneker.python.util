@@ -27,7 +27,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\src\Soenneker.Python.Util.csproj" />
+        <ProjectReference Include="..\..\src\Soenneker.Python.Util\Soenneker.Python.Util.csproj" />
     </ItemGroup>
 
     <ItemGroup>
