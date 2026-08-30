@@ -7,12 +7,12 @@ using Soenneker.Utils.Process.Registrars;
 namespace Soenneker.Python.Util.Registrars;
 
 /// <summary>
-/// A utility library for python related operations
+/// Registers the Python utility and its process and directory dependencies.
 /// </summary>
 public static class PythonUtilRegistrar
 {
     /// <summary>
-    /// Adds <see cref="IPythonUtil"/> as a singleton service. <para/>
+    /// Adds <see cref="IPythonUtil"/> as a singleton service.
     /// </summary>
     /// <param name="services">Service collection that receives the registration.</param>
     /// <returns>The same service collection, so additional registrations can be chained.</returns>
@@ -24,7 +24,7 @@ public static class PythonUtilRegistrar
     }
 
     /// <summary>
-    /// Adds <see cref="IPythonUtil"/> as a scoped service. <para/>
+    /// Adds <see cref="IPythonUtil"/> as a scoped service.
     /// </summary>
     /// <param name="services">Service collection that receives the registration.</param>
     /// <returns>The same service collection, so additional registrations can be chained.</returns>

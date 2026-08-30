@@ -13,11 +13,11 @@ using System.Threading.Tasks;
 
 #if WINDOWS
 using Microsoft.Win32;
+using System.Runtime.Versioning;
 #endif
 
 namespace Soenneker.Python.Util;
 
-/// <inheritdoc cref="IPythonUtil"/>
 public sealed class PythonUtil : IPythonUtil
 {
     private readonly IProcessUtil _processUtil;
@@ -33,9 +33,26 @@ public sealed class PythonUtil : IPythonUtil
 
     public async ValueTask<string> GetPythonPath(string pythonCommand = "python", CancellationToken cancellationToken = default)
     {
+        string file;
+        string launcherArguments;
+
+        if (File.Exists(pythonCommand))
+        {
+            file = pythonCommand;
+            launcherArguments = string.Empty;
+        }
+        else
+        {
+            Split(pythonCommand, out file, out launcherArguments);
+        }
+
+        string arguments = string.IsNullOrWhiteSpace(launcherArguments)
+            ? "-c \"import sys; print(sys.executable)\""
+            : $"{launcherArguments} -c \"import sys; print(sys.executable)\"";
+
         string result = await _processUtil.StartAndGetOutput(
-            pythonCommand,
-            "-c \"import sys; print(sys.executable)\"",
+            file,
+            arguments,
             "",
             TimeSpan.FromSeconds(3),
             cancellationToken
@@ -90,7 +107,7 @@ public sealed class PythonUtil : IPythonUtil
         }
 
 #if WINDOWS
-        if (ProbeRegistry(required, out string? reg))
+        if (OperatingSystem.IsWindows() && ProbeRegistry(required, out string? reg))
             return reg;
 #endif
         return null;
@@ -135,7 +152,7 @@ public sealed class PythonUtil : IPythonUtil
                 ct
             ).NoSync();
         }
-        catch
+        catch when (!ct.IsCancellationRequested)
         {
             return null; // executable not found
         }
@@ -161,6 +178,7 @@ public sealed class PythonUtil : IPythonUtil
     }
 
 #if WINDOWS
+    [SupportedOSPlatform("windows")]
     private static bool ProbeRegistry(Version target, out string? path)
     {
         const string root = @"SOFTWARE\Python\PythonCore";
@@ -241,6 +259,10 @@ public sealed class PythonUtil : IPythonUtil
                 TimeSpan.FromMinutes(10),
                 cancellationToken
             ).NoSync();
+        }
+        else
+        {
+            throw new PlatformNotSupportedException("Automatic Python installation is not supported on this operating system.");
         }
     }
 
