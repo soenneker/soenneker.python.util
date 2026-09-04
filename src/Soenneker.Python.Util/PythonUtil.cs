@@ -18,6 +18,7 @@ using System.Runtime.Versioning;
 
 namespace Soenneker.Python.Util;
 
+/// <inheritdoc cref="IPythonUtil" />
 public sealed class PythonUtil : IPythonUtil
 {
     private readonly IProcessUtil _processUtil;
