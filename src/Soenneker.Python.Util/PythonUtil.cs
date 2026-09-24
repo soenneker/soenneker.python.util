@@ -1,3 +1,4 @@
+using Soenneker.Utils.File.Abstract;
 using Soenneker.Extensions.ValueTask;
 using Soenneker.Python.Util.Abstract;
 using Soenneker.Utils.Directory.Abstract;
@@ -25,8 +26,11 @@ public sealed class PythonUtil : IPythonUtil
     private readonly ILogger<PythonUtil> _logger;
     private readonly IDirectoryUtil _directoryUtil;
 
-    public PythonUtil(IProcessUtil processUtil, ILogger<PythonUtil> logger, IDirectoryUtil directoryUtil)
+    private readonly IFileUtil _fileUtil;
+
+    public PythonUtil(IProcessUtil processUtil, ILogger<PythonUtil> logger, IDirectoryUtil directoryUtil, IFileUtil fileUtil)
     {
+        _fileUtil = fileUtil;
         _processUtil = processUtil;
         _logger = logger;
         _directoryUtil = directoryUtil;
@@ -37,7 +41,7 @@ public sealed class PythonUtil : IPythonUtil
         string file;
         string launcherArguments;
 
-        if (File.Exists(pythonCommand))
+        if (await _fileUtil.Exists(pythonCommand, cancellationToken).NoSync())
         {
             file = pythonCommand;
             launcherArguments = string.Empty;
@@ -108,7 +112,7 @@ public sealed class PythonUtil : IPythonUtil
         }
 
 #if WINDOWS
-        if (OperatingSystem.IsWindows() && ProbeRegistry(required, out string? reg))
+        if (OperatingSystem.IsWindows() && await ProbeRegistry(required, ct).NoSync() is { } reg)
             return reg;
 #endif
         return null;
@@ -129,7 +133,7 @@ public sealed class PythonUtil : IPythonUtil
                 continue;
 
             string candidate = Path.Combine(verDir, "x64", "python.exe");
-            if (File.Exists(candidate))
+            if (await _fileUtil.Exists(candidate, cancellationToken).NoSync())
                 return candidate;
         }
 
@@ -180,7 +184,7 @@ public sealed class PythonUtil : IPythonUtil
 
 #if WINDOWS
     [SupportedOSPlatform("windows")]
-    private static bool ProbeRegistry(Version target, out string? path)
+    private async ValueTask<string?> ProbeRegistry(Version target, CancellationToken cancellationToken)
     {
         const string root = @"SOFTWARE\Python\PythonCore";
 
@@ -199,16 +203,14 @@ public sealed class PythonUtil : IPythonUtil
                 using RegistryKey? ip = baseKey.OpenSubKey($@"{tag}\InstallPath");
                 string candidate = Path.Combine(ip?.GetValue(null)?.ToString() ?? "", "python.exe");
 
-                if (File.Exists(candidate))
+                if (await _fileUtil.Exists(candidate, cancellationToken).NoSync())
                 {
-                    path = candidate;
-                    return true;
+                    return candidate;
                 }
             }
         }
 
-        path = null;
-        return false;
+        return null;
     }
 #endif
 
