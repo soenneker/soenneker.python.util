@@ -52,4 +52,7 @@
         <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2713" />
         <PackageReference Include="Soenneker.Utils.Process" Version="4.0.1567" />
     </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Soenneker.Extensions.ValueTask" Version="4.0.123" />
+    </ItemGroup>
 </Project>
