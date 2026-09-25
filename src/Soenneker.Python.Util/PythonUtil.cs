@@ -164,7 +164,7 @@ public sealed class PythonUtil : IPythonUtil
 
         try
         {
-            string[] data = JsonUtil.Deserialize<string[]>(json)!;
+            string[] data = JsonUtil.Deserialize<string[]>(json, LibraryJsonContext.Get<string[]>())!;
 
             if (OperatingSystem.IsWindows() &&
                 data[0].IndexOf(@"\AppData\Local\Microsoft\WindowsApps\", StringComparison.OrdinalIgnoreCase) >= 0)
