@@ -19,8 +19,7 @@ using System.Runtime.Versioning;
 
 namespace Soenneker.Python.Util;
 
-/// <inheritdoc cref="IPythonUtil" />
-public sealed class PythonUtil : IPythonUtil
+public sealed partial class PythonUtil : IPythonUtil
 {
     private readonly IProcessUtil _processUtil;
     private readonly ILogger<PythonUtil> _logger;

@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
+        <UseLocalProcessUtil Condition="'$(UseLocalProcessUtil)' == '' and Exists('..\..\..\..\Utils\soenneker.utils.process\src\Soenneker.Utils.Process\Soenneker.Utils.Process.csproj')">true</UseLocalProcessUtil>
         <IsAotCompatible>true</IsAotCompatible>
         <Nullable>enable</Nullable>
         <Platforms>AnyCPU</Platforms>
@@ -50,10 +51,15 @@
 
     <ItemGroup>
         <PackageReference Include="Soenneker.Utils.Directory" Version="4.0.949" />
+        <PackageReference Include="Soenneker.Asyncs.Semaphores" Version="4.0.16" />
+        <PackageReference Include="Soenneker.Atomics.ValueBools" Version="4.0.45" />
         <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2735" />
-        <PackageReference Include="Soenneker.Utils.Process" Version="4.0.1575" />
+        <PackageReference Include="Soenneker.Utils.Process" Version="4.0.1576" Condition="'$(UseLocalProcessUtil)' != 'true'" />
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="Soenneker.Extensions.ValueTask" Version="4.0.124" />
+    </ItemGroup>
+    <ItemGroup Condition="'$(UseLocalProcessUtil)' == 'true'">
+        <ProjectReference Include="..\..\..\..\Utils\soenneker.utils.process\src\Soenneker.Utils.Process\Soenneker.Utils.Process.csproj" />
     </ItemGroup>
 </Project>
