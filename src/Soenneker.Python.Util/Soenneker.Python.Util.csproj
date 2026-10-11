@@ -57,7 +57,7 @@
         <PackageReference Include="Soenneker.Utils.Process" Version="4.0.1576" Condition="'$(UseLocalProcessUtil)' != 'true'" />
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="Soenneker.Extensions.ValueTask" Version="4.0.124" />
+        <PackageReference Include="Soenneker.Extensions.ValueTask" Version="4.0.125" />
     </ItemGroup>
     <ItemGroup Condition="'$(UseLocalProcessUtil)' == 'true'">
         <ProjectReference Include="..\..\..\..\Utils\soenneker.utils.process\src\Soenneker.Utils.Process\Soenneker.Utils.Process.csproj" />
