@@ -51,13 +51,13 @@
 
     <ItemGroup>
         <PackageReference Include="Soenneker.Utils.Directory" Version="4.0.951" />
-        <PackageReference Include="Soenneker.Asyncs.Semaphores" Version="4.0.18" />
-        <PackageReference Include="Soenneker.Atomics.ValueBools" Version="4.0.46" />
-        <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2735" />
+        <PackageReference Include="Soenneker.Asyncs.Semaphores" Version="4.0.20" />
+        <PackageReference Include="Soenneker.Atomics.ValueBools" Version="4.0.47" />
+        <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2738" />
         <PackageReference Include="Soenneker.Utils.Process" Version="4.0.1576" Condition="'$(UseLocalProcessUtil)' != 'true'" />
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="Soenneker.Extensions.ValueTask" Version="4.0.125" />
+        <PackageReference Include="Soenneker.Extensions.ValueTask" Version="4.0.126" />
     </ItemGroup>
     <ItemGroup Condition="'$(UseLocalProcessUtil)' == 'true'">
         <ProjectReference Include="..\..\..\..\Utils\soenneker.utils.process\src\Soenneker.Utils.Process\Soenneker.Utils.Process.csproj" />
