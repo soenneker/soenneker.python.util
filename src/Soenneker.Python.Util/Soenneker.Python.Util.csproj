@@ -50,14 +50,14 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Soenneker.Utils.Directory" Version="4.0.954" />
+        <PackageReference Include="Soenneker.Utils.Directory" Version="4.0.962" />
         <PackageReference Include="Soenneker.Asyncs.Semaphores" Version="4.0.28" />
-        <PackageReference Include="Soenneker.Atomics.ValueBools" Version="4.0.51" />
-        <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2742" />
+        <PackageReference Include="Soenneker.Atomics.ValueBools" Version="4.0.53" />
+        <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2749" />
         <PackageReference Include="Soenneker.Utils.Process" Version="4.0.1576" Condition="'$(UseLocalProcessUtil)' != 'true'" />
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="Soenneker.Extensions.ValueTask" Version="4.0.127" />
+        <PackageReference Include="Soenneker.Extensions.ValueTask" Version="4.0.132" />
     </ItemGroup>
     <ItemGroup Condition="'$(UseLocalProcessUtil)' == 'true'">
         <ProjectReference Include="..\..\..\..\Utils\soenneker.utils.process\src\Soenneker.Utils.Process\Soenneker.Utils.Process.csproj" />
