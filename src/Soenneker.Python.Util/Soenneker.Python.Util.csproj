@@ -50,7 +50,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Soenneker.Utils.Directory" Version="4.0.965" />
+        <PackageReference Include="Soenneker.Utils.Directory" Version="4.0.967" />
         <PackageReference Include="Soenneker.Asyncs.Semaphores" Version="4.0.33" />
         <PackageReference Include="Soenneker.Atomics.ValueBools" Version="4.0.53" />
         <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2753" />
