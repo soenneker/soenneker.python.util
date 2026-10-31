@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Soenneker.Python.Util.Abstract;
@@ -47,22 +46,21 @@ public sealed partial class PythonUtil
         TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(script);
-        string directory = Directory.CreateTempSubdirectory("soenneker-python-").FullName;
+        string directory = await _directoryUtil.CreateTempDirectory(cancellationToken).ConfigureAwait(false);
         string path = Path.Combine(directory, "script.py");
         try
         {
-            await File.WriteAllTextAsync(path, script, new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
+            await _fileUtil.Write(path, script, log: false, cancellationToken: cancellationToken).ConfigureAwait(false);
             return await Run(pythonPath, new[] { "-u", path }.Concat(arguments ?? []), timeout, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
-            File.Delete(path);
-            Directory.Delete(directory);
+            await _directoryUtil.DeleteIfExists(directory, CancellationToken.None).ConfigureAwait(false);
         }
     }
 
     public ValueTask<IPythonSession> StartSession(string pythonPath, string script, CancellationToken cancellationToken = default)
-        => PythonSession.Start(_processUtil, pythonPath, script, cancellationToken);
+        => PythonSession.Start(_processUtil, _fileUtil, _directoryUtil, pythonPath, script, cancellationToken);
 
     public async ValueTask<string> EnsureVirtualEnvironment(string pythonPath, string directory, TimeSpan? timeout = null,
         CancellationToken cancellationToken = default)
@@ -71,9 +69,9 @@ public sealed partial class PythonUtil
         cancellationToken.ThrowIfCancellationRequested();
         string interpreter = Path.Combine(Path.GetFullPath(directory), OperatingSystem.IsWindows() ? "Scripts" : "bin",
             OperatingSystem.IsWindows() ? "python.exe" : "python");
-        if (!File.Exists(interpreter))
+        if (!await _fileUtil.Exists(interpreter, cancellationToken).ConfigureAwait(false))
             await Run(pythonPath, ["-m", "venv", Path.GetFullPath(directory)], timeout, cancellationToken).ConfigureAwait(false);
-        if (!File.Exists(interpreter))
+        if (!await _fileUtil.Exists(interpreter, cancellationToken).ConfigureAwait(false))
             throw new InvalidOperationException($"Virtual environment creation did not produce '{interpreter}'.");
         return interpreter;
     }

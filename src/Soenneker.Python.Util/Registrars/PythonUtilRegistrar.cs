@@ -1,4 +1,5 @@
 using Soenneker.Utils.File.Registrars;
+using Soenneker.Utils.File.Download.Registrars;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Soenneker.Python.Util.Abstract;
@@ -19,7 +20,7 @@ public static class PythonUtilRegistrar
     /// <returns>The same service collection, so additional registrations can be chained.</returns>
     public static IServiceCollection AddPythonUtilAsSingleton(this IServiceCollection services)
     {
-        services.AddFileUtilAsSingleton().AddDirectoryUtilAsSingleton().AddProcessUtilAsSingleton().TryAddSingleton<IPythonUtil, PythonUtil>();
+        services.AddFileDownloadUtilAsSingleton().AddFileUtilAsSingleton().AddDirectoryUtilAsSingleton().AddProcessUtilAsSingleton().TryAddSingleton<IPythonUtil, PythonUtil>();
 
         return services;
     }
@@ -31,7 +32,7 @@ public static class PythonUtilRegistrar
     /// <returns>The same service collection, so additional registrations can be chained.</returns>
     public static IServiceCollection AddPythonUtilAsScoped(this IServiceCollection services)
     {
-        services.AddFileUtilAsSingleton().AddDirectoryUtilAsScoped().AddProcessUtilAsScoped().TryAddScoped<IPythonUtil, PythonUtil>();
+        services.AddFileDownloadUtilAsScoped().AddFileUtilAsSingleton().AddDirectoryUtilAsScoped().AddProcessUtilAsScoped().TryAddScoped<IPythonUtil, PythonUtil>();
 
         return services;
     }

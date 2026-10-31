@@ -9,7 +9,7 @@ using Soenneker.Utils.Runtime;
 using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
-using System.Net.Http;
+using Soenneker.Utils.File.Download.Abstract;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,9 +28,12 @@ public sealed partial class PythonUtil : IPythonUtil
     private readonly IDirectoryUtil _directoryUtil;
 
     private readonly IFileUtil _fileUtil;
+    private readonly IFileDownloadUtil _fileDownloadUtil;
 
-    public PythonUtil(IProcessUtil processUtil, ILogger<PythonUtil> logger, IDirectoryUtil directoryUtil, IFileUtil fileUtil)
+    public PythonUtil(IProcessUtil processUtil, ILogger<PythonUtil> logger, IDirectoryUtil directoryUtil, IFileUtil fileUtil,
+        IFileDownloadUtil fileDownloadUtil)
     {
+        _fileDownloadUtil = fileDownloadUtil;
         _fileUtil = fileUtil;
         _processUtil = processUtil;
         _logger = logger;
@@ -321,22 +324,25 @@ public sealed partial class PythonUtil : IPythonUtil
         {
             uv = ManagedUvPath;
             string installDirectory = Path.GetDirectoryName(uv)!;
-            string temporaryDirectory = Directory.CreateTempSubdirectory("soenneker-uv-").FullName;
+            string temporaryDirectory = await _directoryUtil.CreateTempDirectory(cancellationToken).NoSync();
             string installer = Path.Combine(temporaryDirectory, "install.sh");
             try
             {
                 _logger.LogInformation("Installing uv to {InstallDirectory} for managed Python installation.", installDirectory);
-                using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
-                string script = await client.GetStringAsync("https://astral.sh/uv/install.sh", cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(installer, script, cancellationToken).ConfigureAwait(false);
+                using var downloadTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                downloadTimeout.CancelAfter(TimeSpan.FromMinutes(2));
+                string? downloaded = await _fileDownloadUtil.DownloadWithRetry("https://astral.sh/uv/install.sh",
+                    filePath: installer, maxRetryAttempts: 3, cancellationToken: downloadTimeout.Token).NoSync();
+                downloadTimeout.Token.ThrowIfCancellationRequested();
+                if (downloaded is null)
+                    throw new InvalidOperationException("Failed to download the uv installer.");
                 // Install without sudo, shell profile changes, or reliance on a refreshed PATH.
                 await Run("env", [$"UV_UNMANAGED_INSTALL={installDirectory}", "sh", installer],
                     TimeSpan.FromMinutes(5), cancellationToken).NoSync();
             }
             finally
             {
-                File.Delete(installer);
-                Directory.Delete(temporaryDirectory);
+                await _directoryUtil.DeleteIfExists(temporaryDirectory, CancellationToken.None).NoSync();
             }
         }
 

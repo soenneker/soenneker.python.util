@@ -2,7 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Text;
+using Soenneker.Utils.File.Abstract;
+using Soenneker.Utils.Directory.Abstract;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -22,30 +23,33 @@ internal sealed class PythonSession : IPythonSession
     private readonly CancellationTokenSource _lifetime;
     private readonly CancellationToken _lifetimeToken;
     private readonly string _directory;
+    private readonly IDirectoryUtil _directoryUtil;
     private readonly object _disposeLock = new();
     private Process _process = null!;
     private Task _completion = null!;
     private Task? _disposal;
     private ValueAtomicBool _disposed;
 
-    private PythonSession(string directory, CancellationToken cancellationToken)
+    private PythonSession(string directory, IDirectoryUtil directoryUtil, CancellationToken cancellationToken)
     {
+        _directoryUtil = directoryUtil;
         _directory = directory;
         _lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _lifetimeToken = _lifetime.Token;
     }
 
-    public static async ValueTask<IPythonSession> Start(IProcessUtil processUtil, string interpreter, string script, CancellationToken cancellationToken)
+    public static async ValueTask<IPythonSession> Start(IProcessUtil processUtil, IFileUtil fileUtil, IDirectoryUtil directoryUtil,
+        string interpreter, string script, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(interpreter);
         ArgumentException.ThrowIfNullOrWhiteSpace(script);
         cancellationToken.ThrowIfCancellationRequested();
-        string directory = Directory.CreateTempSubdirectory("soenneker-python-session-").FullName;
-        var session = new PythonSession(directory, cancellationToken);
+        string directory = await directoryUtil.CreateTempDirectory(cancellationToken).ConfigureAwait(false);
+        var session = new PythonSession(directory, directoryUtil, cancellationToken);
         string path = Path.Combine(directory, "script.py");
         try
         {
-            await File.WriteAllTextAsync(path, script, new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
+            await fileUtil.Write(path, script, log: false, cancellationToken: cancellationToken).ConfigureAwait(false);
             session._process = await processUtil.StartDetached(new ProcessStartDto
             {
                 FileName = interpreter, ArgumentList = ["-u", path], RedirectStandardInput = true, Log = false,
@@ -60,8 +64,7 @@ internal sealed class PythonSession : IPythonSession
         catch
         {
             session._lifetime.Dispose();
-            File.Delete(path);
-            Directory.Delete(directory);
+            await directoryUtil.DeleteIfExists(directory, CancellationToken.None).ConfigureAwait(false);
             throw;
         }
     }
@@ -132,8 +135,7 @@ internal sealed class PythonSession : IPythonSession
         await _lifetime.CancelAsync().ConfigureAwait(false);
         await _completion.ConfigureAwait(false);
         _process.Dispose();
-        File.Delete(Path.Combine(_directory, "script.py"));
-        Directory.Delete(_directory);
+        await _directoryUtil.DeleteIfExists(_directory, CancellationToken.None).ConfigureAwait(false);
         _lifetime.Dispose();
     }
 }
