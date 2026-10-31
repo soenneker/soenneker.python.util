@@ -9,6 +9,8 @@ using Soenneker.Utils.Runtime;
 using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
+using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -90,9 +92,8 @@ public sealed partial class PythonUtil : IPythonUtil
 
     private async ValueTask<string?> TryLocate(Version required, CancellationToken ct)
     {
-        if (RuntimeUtil.IsWindows())
-            if (await ProbeHostedToolCache(required, ct).NoSync() is { } cached)
-                return cached;
+        if (await ProbeHostedToolCache(required, ct).NoSync() is { } cached)
+            return cached;
 
         string[] commands = OperatingSystem.IsWindows()
             ?
@@ -102,7 +103,7 @@ public sealed partial class PythonUtil : IPythonUtil
                 "python3",
                 "py -3"
             ]
-            : ["python3", "python"];
+            : [$"python{required.Major}.{required.Minor}", "python3", "python"];
 
         foreach (string cmd in commands)
         {
@@ -114,12 +115,17 @@ public sealed partial class PythonUtil : IPythonUtil
         if (OperatingSystem.IsWindows() && await ProbeRegistry(required, ct).NoSync() is { } reg)
             return reg;
 #endif
+        if (OperatingSystem.IsLinux())
+            return await ProbeManagedPython(required, ct).NoSync();
+
         return null;
     }
 
     private async ValueTask<string?> ProbeHostedToolCache(Version target, CancellationToken cancellationToken)
     {
-        string root = Environment.GetEnvironmentVariable("AGENT_TOOLSDIRECTORY") ?? @"C:\hostedtoolcache\windows";
+        string root = Environment.GetEnvironmentVariable("RUNNER_TOOL_CACHE")
+                      ?? Environment.GetEnvironmentVariable("AGENT_TOOLSDIRECTORY")
+                      ?? (OperatingSystem.IsWindows() ? @"C:\hostedtoolcache\windows" : "/opt/hostedtoolcache");
 
         string pythonRoot = Path.Combine(root, "Python");
         if (!(await _directoryUtil.Exists(pythonRoot, cancellationToken)))
@@ -131,9 +137,13 @@ public sealed partial class PythonUtil : IPythonUtil
             if (!Version.TryParse(Path.GetFileName(verDir), out Version? v) || !MatchMajorMinor(v, target))
                 continue;
 
-            string candidate = Path.Combine(verDir, "x64", "python.exe");
+            string architecture = RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
+            string candidate = OperatingSystem.IsWindows()
+                ? Path.Combine(verDir, architecture, "python.exe")
+                : Path.Combine(verDir, architecture, "bin", "python3");
             if (await _fileUtil.Exists(candidate, cancellationToken).NoSync())
-                return candidate;
+                if (await Probe(candidate, target, cancellationToken).NoSync() is { } found)
+                    return found;
         }
 
         return null;
@@ -141,7 +151,10 @@ public sealed partial class PythonUtil : IPythonUtil
 
     private async ValueTask<string?> Probe(string command, Version target, CancellationToken ct)
     {
-        Split(command, out string file, out string extra);
+        string file = command;
+        string extra = string.Empty;
+        if (!Path.IsPathFullyQualified(command))
+            Split(command, out file, out extra);
 
         const string script = "-c \"import json, sys, platform;" + "print(json.dumps([sys.executable, platform.python_version()]))\"";
 
@@ -219,8 +232,7 @@ public sealed partial class PythonUtil : IPythonUtil
 
         if (RuntimeUtil.IsLinux())
         {
-            // Debian/Ubuntu; adapt for yum/dnf/zypper if needed.
-            await _processUtil.BashRun($"sudo apt-get -qq update && sudo apt-get -y install python{ver}", workingDir: "", cancellationToken: cancellationToken);
+            await InstallManagedPython(version, cancellationToken).NoSync();
         }
         else if (RuntimeUtil.IsWindows())
         {
@@ -266,6 +278,70 @@ public sealed partial class PythonUtil : IPythonUtil
         {
             throw new PlatformNotSupportedException("Automatic Python installation is not supported on this operating system.");
         }
+    }
+
+    private static string ManagedUvPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Soenneker", "Python", "uv", "uv");
+
+    private async ValueTask<string?> FindUv(CancellationToken cancellationToken)
+    {
+        foreach (string candidate in new[] { ManagedUvPath, "uv" })
+        {
+            if (await _processUtil.CommandExistsAndRuns(candidate, "--version", TimeSpan.FromSeconds(3), cancellationToken).NoSync())
+                return candidate;
+        }
+
+        return null;
+    }
+
+    private async ValueTask<string?> ProbeManagedPython(Version version, CancellationToken cancellationToken)
+    {
+        string? uv = await FindUv(cancellationToken).NoSync();
+        if (uv is null)
+            return null;
+
+        try
+        {
+            // Discovery must never download Python, including when installIfMissing is false.
+            string path = await Run(uv,
+                ["python", "find", $"{version.Major}.{version.Minor}", "--managed-python", "--no-python-downloads", "--no-config"],
+                TimeSpan.FromSeconds(10), cancellationToken).NoSync();
+            return await Probe(path.Trim(), version, cancellationToken).NoSync();
+        }
+        catch when (!cancellationToken.IsCancellationRequested)
+        {
+            return null;
+        }
+    }
+
+    private async ValueTask InstallManagedPython(Version version, CancellationToken cancellationToken)
+    {
+        string? uv = await FindUv(cancellationToken).NoSync();
+        if (uv is null)
+        {
+            uv = ManagedUvPath;
+            string installDirectory = Path.GetDirectoryName(uv)!;
+            string temporaryDirectory = Directory.CreateTempSubdirectory("soenneker-uv-").FullName;
+            string installer = Path.Combine(temporaryDirectory, "install.sh");
+            try
+            {
+                _logger.LogInformation("Installing uv to {InstallDirectory} for managed Python installation.", installDirectory);
+                using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
+                string script = await client.GetStringAsync("https://astral.sh/uv/install.sh", cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(installer, script, cancellationToken).ConfigureAwait(false);
+                // Install without sudo, shell profile changes, or reliance on a refreshed PATH.
+                await Run("env", [$"UV_UNMANAGED_INSTALL={installDirectory}", "sh", installer],
+                    TimeSpan.FromMinutes(5), cancellationToken).NoSync();
+            }
+            finally
+            {
+                File.Delete(installer);
+                Directory.Delete(temporaryDirectory);
+            }
+        }
+
+        await Run(uv, ["python", "install", $"{version.Major}.{version.Minor}", "--no-config"],
+            TimeSpan.FromMinutes(10), cancellationToken).NoSync();
     }
 
     private static bool MatchMajorMinor(Version found, Version target) =>

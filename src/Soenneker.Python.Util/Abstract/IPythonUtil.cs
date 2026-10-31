@@ -24,17 +24,19 @@ public interface IPythonUtil
     /// Ensures that an interpreter matching the requested major and minor version exists.
     /// </summary>
     /// <param name="minVersion">Required major/minor version (for example, <c>"3.11"</c>).</param>
-    /// <param name="installIfMissing">Whether to invoke the platform package manager when no matching interpreter is found.</param>
+    /// <param name="installIfMissing">Whether to install Python when no matching interpreter is found. Linux uses uv-managed Python;
+    /// other supported platforms use their package managers. When false, discovery does not download Python or uv.</param>
     /// <param name="cancellationToken">Optional cancellation token.</param>
     /// <returns>The full path to the matching interpreter.</returns>
     ValueTask<string> EnsureInstalled(string minVersion = "3.11", bool installIfMissing = true, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Invokes the platform-appropriate package manager to install the specified Python version.
+    /// Installs the specified Python version. On Linux, bootstraps uv if needed and installs a managed interpreter
+    /// without requiring sudo or a distribution-specific Python package. Other supported platforms use their package managers.
     /// </summary>
     /// <param name="min">Version object describing the major/minor release to install (for example, 3.11).</param>
     /// <param name="cancellationToken">Optional cancellation token.</param>
-    /// <returns>A task that completes when the package-manager command finishes.</returns>
+    /// <returns>A task that completes when installation finishes.</returns>
     ValueTask TryInstall(Version min, CancellationToken cancellationToken = default);
 
     /// <summary>Runs an interpreter through Process.Util with individually escaped arguments, returning stdout only.
