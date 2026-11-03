@@ -51,10 +51,10 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Soenneker.Utils.File.Download" Version="11.0.1838" />
+        <PackageReference Include="Soenneker.Utils.File.Download" Version="11.0.1840" />
         <PackageReference Include="Soenneker.Utils.Directory" Version="11.0.971" />
         <PackageReference Include="Soenneker.Asyncs.Semaphores" Version="11.0.36" />
-        <PackageReference Include="Soenneker.Utils.Json" Version="11.0.2774" />
+        <PackageReference Include="Soenneker.Utils.Json" Version="11.0.2776" />
         <PackageReference Include="Soenneker.Utils.Process" Version="11.0.1604" Condition="'$(UseLocalProcessUtil)' != 'true'" />
     </ItemGroup>
     <ItemGroup>
