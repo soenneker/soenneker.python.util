@@ -55,7 +55,7 @@
         <PackageReference Include="Soenneker.Utils.Directory" Version="11.0.973" />
         <PackageReference Include="Soenneker.Asyncs.Semaphores" Version="11.0.36" />
         <PackageReference Include="Soenneker.Utils.Json" Version="11.0.2779" />
-        <PackageReference Include="Soenneker.Utils.Process" Version="11.0.1604" Condition="'$(UseLocalProcessUtil)' != 'true'" />
+        <PackageReference Include="Soenneker.Utils.Process" Version="11.0.1609" Condition="'$(UseLocalProcessUtil)' != 'true'" />
     </ItemGroup>
     <ItemGroup>
     </ItemGroup>
