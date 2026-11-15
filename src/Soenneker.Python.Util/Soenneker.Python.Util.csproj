@@ -51,7 +51,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Soenneker.Utils.File.Download" Version="11.0.1854" />
+        <PackageReference Include="Soenneker.Utils.File.Download" Version="11.0.1856" />
         <PackageReference Include="Soenneker.Utils.Directory" Version="11.0.980" />
         <PackageReference Include="Soenneker.Asyncs.Semaphores" Version="11.0.38" />
         <PackageReference Include="Soenneker.Utils.Json" Version="11.0.2789" />
